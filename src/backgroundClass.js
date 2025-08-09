@@ -378,25 +378,44 @@ class uDarkExtended extends uDarkExtendedContentScript {
         });
       }
       
-      installToggleSiteCommand(resolve) { // This is a command that will be available in the browser shortcuts, it will trigger the toggle action, it's a way to toggle the site without opening the popup
+      installToggleSiteCommand(resolve) {
+  // Command นี้จะ trigger action toggle-site ผ่าน browser shortcut
+  (async () => {
+    try {
+      const platform = await browser.runtime.getPlatformInfo();
+
+      // รันเฉพาะ Desktop (ไม่ใช่ Android)
+      if (platform.os !== "android") {
         browser.commands.onCommand.addListener((command) => {
           if (command === "toggle-site") {
             console.log("Shortcut triggered: toggle-site");
-            
-            browser.browserAction.getPopup({}).then(previousValue => { // Prepare to restore the previous popup after the toggle
+
+            // เก็บ popup เดิมไว้
+            browser.browserAction.getPopup({}).then(previousValue => {
               setTimeout(() => {
-                browser.browserAction.setPopup({popup:previousValue}); // Restore the previous popup after the toggle
-              },500);
+                browser.browserAction.setPopup({ popup: previousValue }); // Restore popup เดิม
+              }, 500);
             });
-            
-            browser.browserAction.setPopup({popup:"/popup/popup.html?mode=uDark-popup&action=toggleSite"}); // Open the popup with the toggle action
-            browser.browserAction.openPopup(); // Open the popup
-            
-            
+
+            // ตั้ง popup ใหม่สำหรับ toggle action
+            browser.browserAction.setPopup({
+              popup: "/popup/popup.html?mode=uDark-popup&action=toggleSite"
+            });
+
+            // เปิด popup
+            browser.browserAction.openPopup();
           }
         });
-        resolve();
+      } else {
+        console.log("browser.commands not supported on Android ❌");
       }
+    } catch (err) {
+      console.error("Failed to detect platform:", err);
+    }
+    })();
+    resolve();
+  }
+
       
       portConnected(connectedPort) {
         uDark.info("Connected", connectedPort.sender.url, connectedPort.sender.contextId, connectedPort.sender);

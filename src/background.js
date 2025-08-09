@@ -1,23 +1,49 @@
 // Listen for keyboard shortcut commands (e.g., Ctrl+Shift+U)
-if (typeof browser !== 'undefined' && browser.commands && browser.commands.onCommand) {
-    browser.commands.onCommand.addListener(async function(command) {
-        if (command === 'toggle-site') {
-            // Get the active tab
-            let tabs = await browser.tabs.query({active: true, currentWindow: true});
-            let tab = tabs[0];
-            if (!tab || !tab.url) return;
-            // Send a message to the popup or content script to toggle exclusion for this site
-            // We'll use storage as a trigger for the popup logic
-            let url = tab.url;
-            // Use a custom event in storage to trigger popup logic
-            await browser.storage.local.set({__udark_toggle_site: {url, time: Date.now()}});
-            // Optionally, open the popup if not already open
-            if (browser.browserAction && browser.browserAction.openPopup) {
-                try { await browser.browserAction.openPopup(); } catch (e) {}
-            }
+(async () => {
+    try {
+        // ตรวจสอบว่าไม่ใช่ Android ก่อนลงทะเบียน browser.commands
+        const platform = await browser.runtime.getPlatformInfo();
+
+        if (platform.os !== "android" && 
+            typeof browser !== 'undefined' && 
+            browser.commands && 
+            browser.commands.onCommand) {
+
+            // ฟัง event จาก keyboard shortcut
+            browser.commands.onCommand.addListener(async function (command) {
+                if (command === 'toggle-site') {
+                    // หา active tab ปัจจุบัน
+                    let tabs = await browser.tabs.query({ active: true, currentWindow: true });
+                    let tab = tabs[0];
+                    if (!tab || !tab.url) return;
+
+                    // เก็บ trigger ลง storage เพื่อให้ popup logic ทำงาน
+                    let url = tab.url;
+                    await browser.storage.local.set({
+                        __udark_toggle_site: { url, time: Date.now() }
+                    });
+
+                    // เปิด popup (ถ้าทำได้)
+                    if (browser.browserAction && browser.browserAction.openPopup) {
+                        try { 
+                            await browser.browserAction.openPopup(); 
+                        } catch (e) {
+                            console.warn("Failed to open popup:", e);
+                        }
+                    }
+                }
+            });
+
+        } else {
+            console.log("browser.commands not supported on Android ❌");
         }
-    });
-}
+
+    } catch (err) {
+        console.error("Error initializing shortcut listener:", err);
+    }
+})();
+
+
 class Common {
   static appCompat(res) {
     
